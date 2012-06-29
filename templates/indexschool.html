@@ -1,0 +1,12 @@
+<html>
+<head>
+<title>Index all school</title>
+</head>
+<body>
+<h1>This is all the school in my website</h1>
+{% for school in schools %}
+<b>Name:<a href="/school/{{school.name}}">{{school.name}}</a></b></br>
+Description:{{school.des}}</br></br>
+{% endfor %}
+</body>
+</html>

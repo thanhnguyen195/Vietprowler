@@ -20,6 +20,7 @@ from string import letters
 
 import webapp2
 import jinja2
+import string
 
 from google.appengine.ext import db
 
@@ -48,21 +49,38 @@ def render_post(response, post):
 
 ##### Create school table ######
 class School(db.Model):
-    name = db.TextProperty(required = True)
+    name = db.StringProperty(required = True)
     des = db.TextProperty()
     
-##### Create adding school page #####
+##### Create adding-school page #####
 class AddSchool(BaseHandler):
     def get(self):
         self.render("addschool.html")
         
     def post(self):
         name = self.request.get("name")
+        name = name.strip()
         des = self.request.get("description")
         school = School(name=name,des=des)
         school.put()
         self.redirect('/addschool')
 
-
-app = webapp2.WSGIApplication([('/addschool', AddSchool),],
+##### Create indexing-school page #####
+class IndexSchool(BaseHandler):
+    def get(self):
+        q = School.all()
+        schools = q.fetch(1000)
+        self.render("indexschool.html",schools=schools)
+        
+##### Create separated page for each school #####
+class SchoolHandler(BaseHandler):
+    def get(self,schoolname):
+        q = School.all()
+        q.filter("name =", schoolname)
+        result = q.get()
+        self.render("school.html",school=result)
+        
+app = webapp2.WSGIApplication([('/addschool', AddSchool),
+                               ('/indexschool', IndexSchool),
+                               (r'/school/(.*)', SchoolHandler),],
                               debug=True)
