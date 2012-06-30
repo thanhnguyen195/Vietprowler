@@ -21,6 +21,7 @@ from string import letters
 import webapp2
 import jinja2
 import string
+import bcrypt
 
 from google.appengine.ext import db
 
@@ -52,6 +53,67 @@ class School(db.Model):
     name = db.StringProperty(required = True)
     des = db.TextProperty()
     
+##### Create user table #####
+class User(db.Model):
+    name = db.StringProperty(required = True)
+    password = db.StringProperty(required = True)
+    email = db.EmailProperty(required = True)
+    auth_sch = db.ReferenceProperty(School)
+    
+##### Create sign up page #####
+USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
+def valid_username(name):
+    q = User.all().filter("name =",name)
+    result = q.get()
+    if result:
+        return None
+    else:
+        return name and USER_RE.match(name)
+
+PASS_RE = re.compile(r"^.{3,20}$")
+def valid_password(password):
+    return password and PASS_RE.match(password)
+    
+EMAIL_RE = re.compile(r'^[\S]+@[\S]+\.[\S]+$')
+def valid_email(email):
+    return email and EMAIL_RE.match(email)
+
+
+class SignUp(BaseHandler):
+    def get(self):
+        self.render("signup.html")
+    def post(self):
+        have_error = False
+        name = self.request.get('name')
+        password = self.request.get('password')
+        repass = self.request.get('repass')
+        email = self.request.get('email')
+        
+        params = dict(name = name, email = email)
+        
+        if not valid_username(name):
+            params['error_name']="That's an invalid username."
+            have_error = True
+        
+        if not valid_password(password):
+            params['error_pass']="That's an invalid password."
+            have_error = True
+        elif password!=repass:
+            params['error_repass']="The password you entered didn't not match."
+            have_error = True
+            
+        if not valid_email(email):
+            params['error_email']="That's an invalid email."
+            have_error = True    
+            
+        if have_error:
+            self.render('signup.html', **params)
+        else:
+            #password = bcrypt.hashpw(password, bcrypt.gensalt(10))
+            p = User(name= name, password = password, email = email)
+            p.put()
+            self.redirect('/indexschool')
+                
 ##### Create adding-school page #####
 class AddSchool(BaseHandler):
     def get(self):
@@ -82,5 +144,7 @@ class SchoolHandler(BaseHandler):
         
 app = webapp2.WSGIApplication([('/addschool', AddSchool),
                                ('/indexschool', IndexSchool),
-                               (r'/school/(.*)', SchoolHandler),],
+                               (r'/school/(.*)', SchoolHandler),
+                               ('/signup', SignUp),
+                               ],
                               debug=True)

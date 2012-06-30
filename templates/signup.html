@@ -1,0 +1,15 @@
+<html>
+<head>
+<title>Sign Up page</title>
+</head>
+<body>
+<h1>Sign up your new account here</h1>
+<form method="POST" action="/signup">
+User Name <input type="text" name="name" value="{{name}}"/>{{error_name}}</br>
+Password <input type="password" name="password"/>{{error_pass}}</br>
+Confirm Password <input type="password" name="repass"/>{{error_repass}}</br>
+Email <input type="text" name="email" value="{{email}}"/>{{error_email}}</br>
+<input type="submit" value="submit"/>
+</form>
+</body>
+</html>
