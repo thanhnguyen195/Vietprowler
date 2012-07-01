@@ -16,12 +16,15 @@
 #
 import os
 import re
+import string
+import random
+import logging
 from string import letters
 
 import webapp2
 import jinja2
-import string
-import bcrypt
+import hashlib
+
 
 from google.appengine.ext import db
 
@@ -61,6 +64,8 @@ class User(db.Model):
     auth_sch = db.ReferenceProperty(School)
     
 ##### Create sign up page #####
+
+### Validate input ###
 USER_RE = re.compile(r"^[a-zA-Z0-9_-]{3,20}$")
 def valid_username(name):
     q = User.all().filter("name =",name)
@@ -78,7 +83,42 @@ EMAIL_RE = re.compile(r'^[\S]+@[\S]+\.[\S]+$')
 def valid_email(email):
     return email and EMAIL_RE.match(email)
 
+### Hashing password ###
+def make_salt():
+    return ''.join(random.choice(string.letters) for x in xrange(5))
+    
+def make_pw_salt(name,pw,salt = None):
+    if not salt:
+        salt = make_salt()
+    h = hashlib.sha256(name+pw+salt).hexdigest()
+    return "%s,%s" %(h,salt)
+    
+def valid_pw(name, pw, h):
+    salt = h.split(',')[1]
+    return h == make_pw_salt(name,pw,salt)
 
+### Checking email to give authorized ###
+email_sch = {'@williams.edu': 'Williams College', '@amherst.edu': 'Amherst College', '@wesleyan.edu': 'Wesleyan University', '@smith.edu': 'Smith College', '@mtholyoke.edu': 'Mount Holyoke College', '@hampshire.edu': 'Hampshire College', '@lafayette.edu': 'Lafayette College', '@dickinson.edu': 'Dickinson College', '@bowdoin.edu': 'Bowdoin College', '@colgate.edu': 'Colgate University'}
+#email_check = {'wth':'@williams.edu', '9':'@amherst.edu', '8':'@wesleyan.edu', '7':'@smith.edu', '6':'@mtholyoke.edu', '5':'@hampshire.edu', '4':'@lafayette.edu', '3':'@dickinson.edu', '2':'@bowdoin.edu', '1':'@colgate.edu'}
+
+def check_email(email):
+    check = False
+    result = email.split('@')[1]
+    result = '@' + result
+    for x in email_sch:
+        if result==x:
+            check = True
+    return check
+    
+def authorize_sch(email):
+    auth_school = None
+    if check_email(email):
+        result = email.split('@')[1]
+        result = '@' + result
+        auth_school = email_sch[result]
+    return auth_school
+    
+### sigup handler ###
 class SignUp(BaseHandler):
     def get(self):
         self.render("signup.html")
@@ -109,8 +149,13 @@ class SignUp(BaseHandler):
         if have_error:
             self.render('signup.html', **params)
         else:
-            #password = bcrypt.hashpw(password, bcrypt.gensalt(10))
-            p = User(name= name, password = password, email = email)
+            auth_sch = None
+            if authorize_sch(email):
+                sch = authorize_sch(email)
+                sch2 = School.all().filter("name =", sch)
+                auth_sch = sch2.get()
+            password = make_pw_salt(name,password)
+            p = User(name= name, password = password, email = email, auth_sch=auth_sch)
             p.put()
             self.redirect('/indexschool')
                 
